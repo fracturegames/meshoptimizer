@@ -374,6 +374,9 @@ static size_t process(cgltf_data* data, const char* input_path, const char* outp
 	for (size_t i = 0; i < meshes.size(); ++i)
 		detachMesh(meshes[i], data, nodes, settings);
 
+	if (settings.coord_convert)
+		transformCoordinateSystem(meshes, animations, data);
+
 	// material information is required for mesh and image processing
 	std::vector<MaterialInfo> materials(data->materials_count);
 	std::vector<TextureInfo> textures(data->textures_count);
@@ -1586,6 +1589,10 @@ int main(int argc, char** argv)
 			settings.compress = true;
 			settings.compresskhr = strcmp(argv[++i], "khr") == 0;
 		}
+		else if (strcmp(arg, "-cu") == 0)
+		{
+			settings.coord_convert = true;
+		}
 		else if (strcmp(arg, "-v") == 0)
 		{
 			settings.verbose = 1;
@@ -1701,6 +1708,7 @@ int main(int argc, char** argv)
 			fprintf(stderr, "\t-ke: keep extras data\n");
 			fprintf(stderr, "\t-mm: merge instances of the same mesh together when possible\n");
 			fprintf(stderr, "\t-mi: use EXT_mesh_gpu_instancing when serializing multiple mesh instances\n");
+			fprintf(stderr, "\t-cu: convert coordinate system to Unity (+Z forward); bakes 180-degree Y rotation into vertex data\n");
 			fprintf(stderr, "\nMiscellaneous:\n");
 			fprintf(stderr, "\t-cf: produce compressed gltf/glb files with fallback for loaders that don't support compression\n");
 			fprintf(stderr, "\t-ce ext|khr: use EXT or KHR version of meshopt compression extension for compression\n");

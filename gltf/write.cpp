@@ -1211,6 +1211,22 @@ size_t writeJointBindMatrices(std::vector<BufferView>& views, std::string& json_
 			cgltf_accessor_read_float(skin.inverse_bind_matrices, j, transform, 16);
 		}
 
+		if (settings.coord_convert)
+		{
+			// Conjugate: R * IBM * R^-1 (same rule as node matrices)
+			// Negate transform[c*4+r] when exactly one of {c, r} is in {0, 2}
+			for (int c = 0; c < 4; ++c)
+			{
+				bool axis_c = (c == 0 || c == 2);
+				for (int r = 0; r < 4; ++r)
+				{
+					bool axis_r = (r == 0 || r == 2);
+					if (axis_c != axis_r)
+						transform[c * 4 + r] = -transform[c * 4 + r];
+				}
+			}
+		}
+
 		if (settings.quantize && !settings.pos_float)
 		{
 			// pos_offset has to be applied first, thus it results in an offset rotated by the bind matrix

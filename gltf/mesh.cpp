@@ -1297,6 +1297,133 @@ void computeMeshQuality(std::vector<Mesh>& meshes)
 		meshes[i].quality = (scales[i] == 0.f || maxscale == 0.f) ? 1.f : scales[i] / maxscale;
 }
 
+void transformCoordinateSystem(std::vector<Mesh>& meshes, std::vector<Animation>& animations, cgltf_data* data)
+{
+	// Apply 180-degree Y rotation: (x, y, z) -> (-x, y, -z)
+	// "Freeze transform" / conjugation approach:
+	//   node_transform' = R * node_transform * R^-1  (all nodes, all depths)
+	//   vertex_data'    = R * vertex_data             (local-space vertices)
+	// Combined: world_pos' = R * world_pos.  det(R)=+1 so winding and tangent.w are unchanged.
+
+	for (size_t mi = 0; mi < meshes.size(); ++mi)
+	{
+		Mesh& mesh = meshes[mi];
+
+		if (!mesh.instances.empty())
+		{
+			// GPU-instanced: left-multiply each instance transform by R (negate x and z rows).
+			// Vertex data stays in object space and is not rotated here; the net effect on
+			// world-space positions is R * T * v = R * original_world_pos, which is correct.
+			for (size_t i = 0; i < mesh.instances.size(); ++i)
+			{
+				float* t = mesh.instances[i].transform;
+				for (int c = 0; c < 4; ++c)
+				{
+					t[c * 4 + 0] = -t[c * 4 + 0];
+					t[c * 4 + 2] = -t[c * 4 + 2];
+				}
+			}
+		}
+		else
+		{
+			// Both baked meshes (nodes.empty(), world-space verts) and node-attached meshes
+			// (nodes non-empty, local-space verts): apply R to vertex data.
+			for (size_t si = 0; si < mesh.streams.size(); ++si)
+			{
+				Stream& stream = mesh.streams[si];
+
+				if (stream.type == cgltf_attribute_type_position || stream.type == cgltf_attribute_type_normal)
+				{
+					for (size_t i = 0; i < stream.data.size(); ++i)
+					{
+						stream.data[i].f[0] = -stream.data[i].f[0];
+						stream.data[i].f[2] = -stream.data[i].f[2];
+					}
+				}
+				else if (stream.type == cgltf_attribute_type_tangent)
+				{
+					for (size_t i = 0; i < stream.data.size(); ++i)
+					{
+						stream.data[i].f[0] = -stream.data[i].f[0];
+						stream.data[i].f[2] = -stream.data[i].f[2];
+						// f[3] (tangent handedness) unchanged: det(R)=+1
+					}
+				}
+			}
+		}
+	}
+
+	// Conjugate ALL node transforms: T' = R * T * R^-1
+	// For TRS nodes: translation negates X/Z; rotation negates qx/qz (conjugation formula).
+	// Identity transforms are invariant so no visible rotation accumulates on any node.
+	for (size_t i = 0; i < data->nodes_count; ++i)
+	{
+		cgltf_node& node = data->nodes[i];
+
+		if (node.has_matrix)
+		{
+			// R * M * R^-1: negate M[c*4+r] when exactly one of {c, r} is in {0, 2}
+			float* m = node.matrix;
+			for (int c = 0; c < 4; ++c)
+			{
+				bool axis_c = (c == 0 || c == 2);
+				for (int r = 0; r < 4; ++r)
+				{
+					bool axis_r = (r == 0 || r == 2);
+					if (axis_c != axis_r)
+						m[c * 4 + r] = -m[c * 4 + r];
+				}
+			}
+		}
+		else
+		{
+			if (node.has_translation)
+			{
+				node.translation[0] = -node.translation[0];
+				node.translation[2] = -node.translation[2];
+			}
+
+			if (node.has_rotation)
+			{
+				// R * q * R^-1 where R is 180-deg Y = (-qx, qy, -qz, qw) [xyzw]
+				node.rotation[0] = -node.rotation[0];
+				node.rotation[2] = -node.rotation[2];
+			}
+			// Identity (has_rotation=false): R*I*R^-1=I, invariant — no change, no flag set
+			// Scale: 180-deg Y conjugation leaves all scale components unchanged
+		}
+	}
+
+	// Conjugate ALL animation tracks (translation and rotation)
+	for (size_t ai = 0; ai < animations.size(); ++ai)
+	{
+		Animation& anim = animations[ai];
+
+		for (size_t ti = 0; ti < anim.tracks.size(); ++ti)
+		{
+			Track& track = anim.tracks[ti];
+
+			if (track.path == cgltf_animation_path_type_translation)
+			{
+				for (size_t ki = 0; ki < track.data.size(); ++ki)
+				{
+					track.data[ki].f[0] = -track.data[ki].f[0];
+					track.data[ki].f[2] = -track.data[ki].f[2];
+				}
+			}
+			else if (track.path == cgltf_animation_path_type_rotation)
+			{
+				// R * q * R^-1 = (-qx, qy, -qz, qw) [xyzw]
+				for (size_t ki = 0; ki < track.data.size(); ++ki)
+				{
+					track.data[ki].f[0] = -track.data[ki].f[0];
+					track.data[ki].f[2] = -track.data[ki].f[2];
+				}
+			}
+		}
+	}
+}
+
 bool hasVertexAlpha(const Mesh& mesh)
 {
 	const Stream* color = getStream(const_cast<Mesh&>(mesh), cgltf_attribute_type_color);
