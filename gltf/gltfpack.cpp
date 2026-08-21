@@ -1389,6 +1389,10 @@ int main(int argc, char** argv)
 		{
 			settings.anim_const = true;
 		}
+		else if (strcmp(arg, "-ap") == 0)
+		{
+			settings.anim_precise = true;
+		}
 		else if (strcmp(arg, "-kn") == 0)
 		{
 			settings.keep_nodes = true;
@@ -1702,6 +1706,7 @@ int main(int argc, char** argv)
 			fprintf(stderr, "\t-as N: use N-bit quantization for scale (default: 16; N should be between 1 and 24)\n");
 			fprintf(stderr, "\t-af N: resample animations at N Hz (default: 30; use 0 to disable)\n");
 			fprintf(stderr, "\t-ac: keep constant animation tracks even if they don't modify the node transform\n");
+			fprintf(stderr, "\t-ap: disable collapsing near-constant animation tracks to actually constant tracks\n");
 			fprintf(stderr, "\nScene:\n");
 			fprintf(stderr, "\t-kn: keep named nodes and meshes attached to named nodes so that named nodes can be transformed externally\n");
 			fprintf(stderr, "\t-km: keep named materials and disable named material merging\n");

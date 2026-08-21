@@ -5,6 +5,7 @@
 
 #include <float.h>
 #include <math.h>
+#include <stdio.h>
 #include <string.h>
 
 static float getScaleDelta(float l, float r)
@@ -339,7 +340,7 @@ void processAnimation(Animation& animation, const Settings& settings)
 
 		float deviation = getMaxDelta(track.data, track.path, &track.data[0], track.components);
 
-		if (deviation <= tolerance)
+		if (deviation <= tolerance && !settings.anim_precise)
 		{
 			// track is constant (equal to first keyframe), we only need the first keyframe
 			track.constant = true;

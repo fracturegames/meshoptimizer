@@ -135,6 +135,7 @@ struct Settings
 
 	int anim_freq;
 	bool anim_const;
+	bool anim_precise;
 
 	bool keep_nodes;
 	bool keep_materials;
