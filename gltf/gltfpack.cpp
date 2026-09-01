@@ -1062,6 +1062,17 @@ int gltfpack(const char* input, const char* output, const char* report, Settings
 		return 2;
 	}
 
+	if (settings.reset_root_transform)
+	{
+		std::string error;
+		if (!resetSceneRootTransform(data, meshes, animations, error))
+		{
+			fprintf(stderr, "Error loading %s: %s\n", input, error.c_str());
+			cgltf_free(data);
+			return 2;
+		}
+	}
+
 #ifndef WITH_BASISU
 	if (data->images_count && settings.texture_ktx2)
 	{
@@ -1301,6 +1312,7 @@ void applySetting(T (&data)[TextureKind__Count], T value, unsigned int mask = ~0
 #ifndef GLTFFUZZ
 int main(int argc, char** argv)
 {
+
 #ifndef __wasi__
 	setlocale(LC_ALL, "C"); // disable locale specific convention for number parsing/printing
 #endif
@@ -1597,6 +1609,10 @@ int main(int argc, char** argv)
 		{
 			settings.coord_convert = true;
 		}
+		else if (strcmp(arg, "-rt") == 0)
+		{
+			settings.reset_root_transform = true;
+		}
 		else if (strcmp(arg, "-v") == 0)
 		{
 			settings.verbose = 1;
@@ -1714,6 +1730,7 @@ int main(int argc, char** argv)
 			fprintf(stderr, "\t-mm: merge instances of the same mesh together when possible\n");
 			fprintf(stderr, "\t-mi: use EXT_mesh_gpu_instancing when serializing multiple mesh instances\n");
 			fprintf(stderr, "\t-cu: convert coordinate system to Unity (+Z forward); bakes 180-degree Y rotation into vertex data\n");
+			fprintf(stderr, "\t-rt: reset each scene root node's transform to identity, pushing it down into the hierarchy and baked vertex data instead; requires each scene root to have a translation-free, uniform-scale transform\n");
 			fprintf(stderr, "\nMiscellaneous:\n");
 			fprintf(stderr, "\t-cf: produce compressed gltf/glb files with fallback for loaders that don't support compression\n");
 			fprintf(stderr, "\t-ce ext|khr: use EXT or KHR version of meshopt compression extension for compression\n");

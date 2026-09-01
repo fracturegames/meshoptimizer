@@ -126,6 +126,27 @@ cmake . -DMESHOPT_BUILD_GLTFPACK=ON -DMESHOPT_GLTFPACK_BASISU_PATH=basis_univers
 cmake --build . --target gltfpack --config Release
 ```
 
+Without texture compression support, it's usually simpler to build via the repository's `Makefile` (this is what CI uses to build and smoke-test gltfpack):
+
+```
+make config=release gltfpack
+```
+
+This produces `build/gltfpack` (or `build/gltfpack.exe` on Windows via MinGW); pass `BUILD=<dir>` to change the output directory. Add new source files to `gltf/` freely - the Makefile picks up every `gltf/*.cpp` automatically, while `CMakeLists.txt` lists `GLTF_SOURCES` explicitly and needs new files added there too.
+
+### Building a Linux binary from Windows/macOS via Docker
+
+If gltfpack needs to run on a Linux machine with an older glibc than your dev machine's, link against a container matching (or older than) the target distribution rather than the host toolchain, since a binary linked against a newer glibc won't run on an older one. For example, to build against Ubuntu 22.04's glibc (2.35):
+
+```
+docker run --rm -v "<repo-path>:/src" ubuntu:22.04 bash -c "
+  apt-get update -qq && apt-get install -y -q g++ make &&
+  cd /src && make -j\$(nproc) config=release gltfpack BUILD=build-linux-u22
+"
+```
+
+This produces `build-linux-u22/gltfpack`, a self-contained ELF binary with no dependency on the host OS. Since `--rm` discards the container afterwards, `apt-get install` reruns (and re-downloads) every time; if that overhead matters for repeated builds, install the packages into a custom image once (`docker build`) and reuse it instead of the stock `ubuntu:22.04` image. Check the actual glibc requirement of the result with `objdump -T build-linux-u22/gltfpack | grep -oP 'GLIBC_[0-9.]+' | sort -Vu | tail -1`.
+
 ## License
 
 gltfpack is available to anybody free of charge, under the terms of MIT License (see LICENSE.md).

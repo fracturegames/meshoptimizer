@@ -148,6 +148,7 @@ struct Settings
 	bool mesh_interleaved;
 	bool mesh_tangents;
 	bool coord_convert;
+	bool reset_root_transform;
 
 	float simplify_ratio;
 	float simplify_error;
@@ -339,6 +340,13 @@ void filterEmptyMeshes(std::vector<Mesh>& meshes);
 void filterStreams(Mesh& mesh, const MaterialInfo& mi);
 void generateTangents(Mesh& mesh);
 void transformCoordinateSystem(std::vector<Mesh>& meshes, std::vector<Animation>& animations, cgltf_data* data);
+
+// Resets the local transform of every scene-root node to identity, pushing it down through the
+// entire hierarchy (descendant transforms, baked mesh vertex data, animation tracks and inverse
+// bind matrices) instead. Only supports translation-free, uniform-scale scene roots; returns
+// false and sets `error` otherwise.
+bool resetSceneRootTransform(cgltf_data* data, std::vector<Mesh>& meshes, std::vector<Animation>& animations, std::string& error);
+void testResetSceneRootTransform();
 
 void mergeMeshMaterials(cgltf_data* data, std::vector<Mesh>& meshes, const Settings& settings);
 void markNeededMaterials(cgltf_data* data, std::vector<MaterialInfo>& materials, const std::vector<Mesh>& meshes, const Settings& settings);

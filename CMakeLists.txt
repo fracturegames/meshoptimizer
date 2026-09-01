@@ -63,6 +63,8 @@ set(GLTF_SOURCES
     gltf/parseobj.cpp
     gltf/parselib.cpp
     gltf/parsegltf.cpp
+    gltf/roottransform.cpp
+    gltf/roottransformtest.cpp
     gltf/stream.cpp
     gltf/write.cpp
 )
