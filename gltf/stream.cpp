@@ -802,7 +802,21 @@ StreamFormat writeTimeStream(std::string& bin, const std::vector<float>& data)
 
 StreamFormat writeKeyframeStream(std::string& bin, cgltf_animation_path_type type, const std::vector<Attr>& data, const Settings& settings, bool has_tangents)
 {
-	if (type == cgltf_animation_path_type_rotation)
+	if (type == cgltf_animation_path_type_rotation && !settings.quantize)
+	{
+		// some importers (e.g. Pixyz) ignore componentType for keyframe data and misread normalized integer rotations
+		for (size_t i = 0; i < data.size(); ++i)
+		{
+			const Attr& a = data[i];
+
+			float v[4] = {a.f[0], a.f[1], a.f[2], a.f[3]};
+			bin.append(reinterpret_cast<const char*>(v), sizeof(v));
+		}
+
+		StreamFormat format = {cgltf_type_vec4, cgltf_component_type_r_32f, false, 16};
+		return format;
+	}
+	else if (type == cgltf_animation_path_type_rotation)
 	{
 		StreamFormat::Filter filter = settings.compressmore && !has_tangents ? StreamFormat::Filter_Quat : StreamFormat::Filter_None;
 
@@ -816,6 +830,19 @@ StreamFormat writeKeyframeStream(std::string& bin, cgltf_animation_path_type typ
 			encodeSnorm(&bin[offset], data.size(), stride, 16, data[0].f);
 
 		StreamFormat format = {cgltf_type_vec4, cgltf_component_type_r_16, true, 8, filter};
+		return format;
+	}
+	else if (type == cgltf_animation_path_type_weights && !settings.quantize)
+	{
+		for (size_t i = 0; i < data.size(); ++i)
+		{
+			const Attr& a = data[i];
+
+			float v[1] = {a.f[0]};
+			bin.append(reinterpret_cast<const char*>(v), sizeof(v));
+		}
+
+		StreamFormat format = {cgltf_type_scalar, cgltf_component_type_r_32f, false, 4};
 		return format;
 	}
 	else if (type == cgltf_animation_path_type_weights)
