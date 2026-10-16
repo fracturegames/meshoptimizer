@@ -215,6 +215,58 @@ static void resampleKeyframes(std::vector<Attr>& data, const std::vector<float>&
 	}
 }
 
+static void convertStepToLinear(Track& track, float min_gap)
+{
+	assert(track.interpolation == cgltf_interpolation_type_step);
+	assert(track.data.size() == track.time.size() * track.components);
+
+	// duration of the linear transition that replaces each step discontinuity
+	const float epsilon = 1e-4f;
+
+	size_t components = track.components;
+
+	std::vector<float> time;
+	std::vector<Attr> data;
+	time.reserve(track.time.size() * 2);
+	data.reserve(track.data.size() * 2);
+
+	for (size_t i = 0; i < track.time.size(); ++i)
+	{
+		const Attr* value = &track.data[i * components];
+
+		if (i > 0)
+		{
+			const Attr* prev_value = &track.data[(i - 1) * components];
+
+			float prev = track.time[i - 1];
+			float next = track.time[i];
+
+			// hold the previous value until just before the current keyframe; not needed if the value doesn't change
+			// short gaps (densely sampled motion) are left to interpolate linearly to avoid doubling the keyframe count
+			if (next - prev > min_gap && memcmp(prev_value, value, components * sizeof(Attr)) != 0)
+			{
+				float hold = next - std::min(epsilon, (next - prev) * 0.5f);
+				if (!(hold > prev && hold < next))
+					hold = nextafterf(next, prev);
+
+				// keyframe times must be strictly increasing; if there is no room, the transition stays linear over the interval
+				if (hold > prev && hold < next)
+				{
+					time.push_back(hold);
+					data.insert(data.end(), prev_value, prev_value + components);
+				}
+			}
+		}
+
+		time.push_back(track.time[i]);
+		data.insert(data.end(), value, value + components);
+	}
+
+	track.time.swap(time);
+	track.data.swap(data);
+	track.interpolation = cgltf_interpolation_type_linear;
+}
+
 static float getMaxDelta(const std::vector<Attr>& data, cgltf_animation_path_type type, const Attr* value, size_t components)
 {
 	assert(data.size() % components == 0);
@@ -314,6 +366,9 @@ void processAnimation(Animation& animation, const Settings& settings)
 	for (size_t i = 0; i < animation.tracks.size(); ++i)
 	{
 		Track& track = animation.tracks[i];
+
+		if (settings.anim_step_linear && track.interpolation == cgltf_interpolation_type_step)
+			convertStepToLinear(track, float(settings.anim_step_gap) / 1000.f);
 
 		if (settings.anim_freq)
 		{

@@ -1255,6 +1255,7 @@ Settings defaults()
 	settings.rot_bits = 12;
 	settings.scl_bits = 16;
 	settings.anim_freq = 30;
+	settings.anim_step_gap = 100;
 	settings.mesh_dedup = true;
 	settings.simplify_ratio = 1.f;
 	settings.simplify_error = 1e-2f;
@@ -1404,6 +1405,13 @@ int main(int argc, char** argv)
 		else if (strcmp(arg, "-ap") == 0)
 		{
 			settings.anim_precise = true;
+		}
+		else if (strcmp(arg, "-al") == 0)
+		{
+			settings.anim_step_linear = true;
+
+			if (i + 1 < argc && isdigit(argv[i + 1][0]))
+				settings.anim_step_gap = atoi(argv[++i]);
 		}
 		else if (strcmp(arg, "-kn") == 0)
 		{
@@ -1723,6 +1731,7 @@ int main(int argc, char** argv)
 			fprintf(stderr, "\t-af N: resample animations at N Hz (default: 30; use 0 to disable)\n");
 			fprintf(stderr, "\t-ac: keep constant animation tracks even if they don't modify the node transform\n");
 			fprintf(stderr, "\t-ap: disable collapsing near-constant animation tracks to actually constant tracks\n");
+			fprintf(stderr, "\t-al [N]: convert STEP animation tracks to LINEAR; when keyframes are more than N ms apart (default: 100), the value is held until 0.1ms before the next keyframe to preserve the step\n");
 			fprintf(stderr, "\nScene:\n");
 			fprintf(stderr, "\t-kn: keep named nodes and meshes attached to named nodes so that named nodes can be transformed externally\n");
 			fprintf(stderr, "\t-km: keep named materials and disable named material merging\n");
