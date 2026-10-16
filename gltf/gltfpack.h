@@ -343,12 +343,17 @@ void filterStreams(Mesh& mesh, const MaterialInfo& mi);
 void generateTangents(Mesh& mesh);
 void transformCoordinateSystem(std::vector<Mesh>& meshes, std::vector<Animation>& animations, cgltf_data* data);
 
-// Resets the local transform of every scene-root node to identity, pushing it down through the
-// entire hierarchy (descendant transforms, baked mesh vertex data, animation tracks and inverse
-// bind matrices) instead. Only supports translation-free, uniform-scale scene roots; returns
-// false and sets `error` otherwise.
+// Strips rotation and scale from the local transform of every scene-root node (leaving only its
+// translation), pushing them down through the entire hierarchy (descendant transforms, baked mesh
+// vertex data, animation tracks and inverse bind matrices) instead. Only supports uniform-scale
+// scene roots; returns false and sets `error` otherwise.
 bool resetSceneRootTransform(cgltf_data* data, std::vector<Mesh>& meshes, std::vector<Animation>& animations, std::string& error);
 void testResetSceneRootTransform();
+
+// Repairs KHR_materials_unlit materials that carry their color in the emissive texture instead of the
+// base color texture (as produced by Unity Asset Transformer) by moving the emissive texture/factor to
+// base color. Returns the number of materials that were changed.
+size_t fixUnlitEmissiveMaterials(cgltf_data* data);
 
 void mergeMeshMaterials(cgltf_data* data, std::vector<Mesh>& meshes, const Settings& settings);
 void markNeededMaterials(cgltf_data* data, std::vector<MaterialInfo>& materials, const std::vector<Mesh>& meshes, const Settings& settings);

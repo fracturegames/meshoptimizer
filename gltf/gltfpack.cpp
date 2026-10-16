@@ -1062,6 +1062,12 @@ int gltfpack(const char* input, const char* output, const char* report, Settings
 		return 2;
 	}
 
+	// always on: these materials render black otherwise, and a correct unlit material is never affected
+	size_t fixed_unlit = fixUnlitEmissiveMaterials(data);
+
+	if (settings.verbose && fixed_unlit)
+		printf("materials: %d unlit materials remapped from emissive to base color\n", int(fixed_unlit));
+
 	if (settings.reset_root_transform)
 	{
 		std::string error;
@@ -1739,7 +1745,7 @@ int main(int argc, char** argv)
 			fprintf(stderr, "\t-mm: merge instances of the same mesh together when possible\n");
 			fprintf(stderr, "\t-mi: use EXT_mesh_gpu_instancing when serializing multiple mesh instances\n");
 			fprintf(stderr, "\t-cu: convert coordinate system to Unity (+Z forward); bakes 180-degree Y rotation into vertex data\n");
-			fprintf(stderr, "\t-rt: reset each scene root node's transform to identity, pushing it down into the hierarchy and baked vertex data instead; requires each scene root to have a translation-free, uniform-scale transform\n");
+			fprintf(stderr, "\t-rt: reset each scene root node's rotation and scale to identity (keeping its translation), pushing them down into the hierarchy and baked vertex data instead; requires each scene root to have a uniform-scale transform\n");
 			fprintf(stderr, "\nMiscellaneous:\n");
 			fprintf(stderr, "\t-cf: produce compressed gltf/glb files with fallback for loaders that don't support compression\n");
 			fprintf(stderr, "\t-ce ext|khr: use EXT or KHR version of meshopt compression extension for compression\n");

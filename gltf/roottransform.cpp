@@ -303,7 +303,6 @@ bool resetSceneRootTransform(cgltf_data* data, std::vector<Mesh>& meshes, std::v
 	std::unordered_map<cgltf_node*, cgltf_node*> owner; // node -> owning scene root (includes the roots themselves)
 	std::unordered_map<cgltf_node*, RootTransform> roots; // root -> T
 
-	const float kTranslationTolerance = 1e-4f;
 	const float kScaleTolerance = 1e-3f;
 
 	for (size_t ri = 0; ri < scene->nodes_count; ++ri)
@@ -312,12 +311,6 @@ bool resetSceneRootTransform(cgltf_data* data, std::vector<Mesh>& meshes, std::v
 
 		float t[3], r[4], s[3];
 		getLocalTRS(*root, t, r, s);
-
-		if (fabsf(t[0]) > kTranslationTolerance || fabsf(t[1]) > kTranslationTolerance || fabsf(t[2]) > kTranslationTolerance)
-		{
-			error = "scene root node " + nodeLabel(data, root) + " has a non-zero translation; only translation-free scene roots are supported";
-			return false;
-		}
 
 		if (!isUniformScale(s, kScaleTolerance) || s[0] <= 1e-6f)
 		{
@@ -333,11 +326,11 @@ bool resetSceneRootTransform(cgltf_data* data, std::vector<Mesh>& meshes, std::v
 		roots[root] = rt;
 		owner[root] = root;
 
-		// reset the root's own local transform to identity; its old transform is now T, pushed down into descendants and baked meshes
-		float zeroT[3] = {0.f, 0.f, 0.f};
+		// strip rotation/scale from the root's local transform; they become T, pushed down into descendants and baked meshes.
+		// the root keeps its translation: root = translation * T, so world = translation * (T * X * T^-1) * (T * v) is unchanged
 		float identityR[4] = {0.f, 0.f, 0.f, 1.f};
 		float oneS[3] = {1.f, 1.f, 1.f};
-		setLocalTRS(*root, zeroT, identityR, oneS);
+		setLocalTRS(*root, t, identityR, oneS);
 
 		for (cgltf_size ci = 0; ci < root->children_count; ++ci)
 			resetDescendant(data, root->children[ci], root, rt, owner);
@@ -433,8 +426,8 @@ bool resetSceneRootTransform(cgltf_data* data, std::vector<Mesh>& meshes, std::v
 				continue;
 
 			// the scene root's own animation (if any) isn't part of the "descendants" this function
-			// pushes the transform into; its rest pose was reset explicitly above but the (rare) case
-			// of an animated scene root is not supported by this transform.
+			// pushes the transform into; translation tracks remain valid since the root keeps its
+			// translation, but animated rotation/scale on a scene root is not supported by this transform.
 			if (roots.count(track.node))
 				continue;
 

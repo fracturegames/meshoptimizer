@@ -563,6 +563,52 @@ void analyzeMaterials(cgltf_data* data, std::vector<MaterialInfo>& materials, st
 	}
 }
 
+size_t fixUnlitEmissiveMaterials(cgltf_data* data)
+{
+	size_t result = 0;
+
+	for (size_t i = 0; i < data->materials_count; ++i)
+	{
+		cgltf_material& material = data->materials[i];
+
+		// unlit materials ignore emissive, so an emissive texture on an unlit material with no base color texture
+		// is a misplaced base color texture
+		if (!material.unlit || !material.emissive_texture.texture)
+			continue;
+
+		if (material.has_pbr_metallic_roughness && material.pbr_metallic_roughness.base_color_texture.texture)
+			continue;
+
+		if (!material.has_pbr_metallic_roughness)
+		{
+			// defaults per glTF spec; alpha stays at 1 unless the material already specified it
+			material.has_pbr_metallic_roughness = true;
+			material.pbr_metallic_roughness.base_color_factor[3] = 1.f;
+			material.pbr_metallic_roughness.metallic_factor = 1.f;
+			material.pbr_metallic_roughness.roughness_factor = 1.f;
+		}
+
+		cgltf_pbr_metallic_roughness& pbr = material.pbr_metallic_roughness;
+		float strength = material.has_emissive_strength ? material.emissive_strength.emissive_strength : 1.f;
+
+		pbr.base_color_texture = material.emissive_texture;
+
+		for (int k = 0; k < 3; ++k)
+		{
+			float f = material.emissive_factor[k] * strength;
+			pbr.base_color_factor[k] = f < 0.f ? 0.f : (f > 1.f ? 1.f : f);
+		}
+
+		memset(&material.emissive_texture, 0, sizeof(material.emissive_texture));
+		material.emissive_factor[0] = material.emissive_factor[1] = material.emissive_factor[2] = 0.f;
+		material.has_emissive_strength = false;
+
+		result++;
+	}
+
+	return result;
+}
+
 static int getChannels(const cgltf_image& image, ImageInfo& info, const char* input_path)
 {
 	if (info.channels)

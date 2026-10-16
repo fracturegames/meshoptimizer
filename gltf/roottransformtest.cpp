@@ -130,7 +130,7 @@ const float kEps = 5e-3f;
 void testResetSceneRootTransform()
 {
 	// ---- hierarchy ----
-	// 0 = R (scene root, translation-free uniform-scale transform to be reset)
+	// 0 = R (scene root, uniform-scale transform whose rotation/scale is reset; translation is kept)
 	// 1 = A (static mesh branch, child of R)
 	// 2 = B (animated branch, child of R; no mesh, translation/rotation/scale each animated independently)
 	// 3 = C (skinned mesh branch, child of R)
@@ -141,6 +141,7 @@ void testResetSceneRootTransform()
 
 	// R
 	nodes[0].has_translation = true;
+	nodes[0].translation[0] = 4.f, nodes[0].translation[1] = -1.5f, nodes[0].translation[2] = 2.5f;
 	nodes[0].has_rotation = true;
 	axisAngleQuat(nodes[0].rotation, 1.f, 2.f, 3.f, 0.9f);
 	nodes[0].has_scale = true;
@@ -432,7 +433,7 @@ void testResetSceneRootTransform()
 	bool ok = resetSceneRootTransform(&data, meshes, animations, error);
 	TT_CHECK(ok);
 
-	// ---- static branch: baked mesh vertices composed with the (now-identity-rooted) world chain must match the original ----
+	// ---- static branch: baked mesh vertices composed with the (now translation-only-rooted) world chain must match the original ----
 
 	float worldAAfter[16];
 	cgltf_node_transform_world(&nodes[1], worldAAfter);
