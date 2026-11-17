@@ -221,7 +221,8 @@ static void convertStepToLinear(Track& track, float min_gap)
 	assert(track.data.size() == track.time.size() * track.components);
 
 	// duration of the linear transition that replaces each step discontinuity
-	const float epsilon = 1e-4f;
+	// keyframes closer than ~2ms break some importers (PiXYZ), so this is kept well above that
+	const float epsilon = 4e-3f;
 
 	size_t components = track.components;
 
@@ -243,18 +244,11 @@ static void convertStepToLinear(Track& track, float min_gap)
 
 			// hold the previous value until just before the current keyframe; not needed if the value doesn't change
 			// short gaps (densely sampled motion) are left to interpolate linearly to avoid doubling the keyframe count
-			if (next - prev > min_gap && memcmp(prev_value, value, components * sizeof(Attr)) != 0)
+			// gaps that can't fit the hold keyframe at least epsilon away from both neighbors also stay linear
+			if (next - prev > min_gap && next - prev >= epsilon * 2 && memcmp(prev_value, value, components * sizeof(Attr)) != 0)
 			{
-				float hold = next - std::min(epsilon, (next - prev) * 0.5f);
-				if (!(hold > prev && hold < next))
-					hold = nextafterf(next, prev);
-
-				// keyframe times must be strictly increasing; if there is no room, the transition stays linear over the interval
-				if (hold > prev && hold < next)
-				{
-					time.push_back(hold);
-					data.insert(data.end(), prev_value, prev_value + components);
-				}
+				time.push_back(next - epsilon);
+				data.insert(data.end(), prev_value, prev_value + components);
 			}
 		}
 

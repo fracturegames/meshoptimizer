@@ -1737,7 +1737,7 @@ int main(int argc, char** argv)
 			fprintf(stderr, "\t-af N: resample animations at N Hz (default: 30; use 0 to disable)\n");
 			fprintf(stderr, "\t-ac: keep constant animation tracks even if they don't modify the node transform\n");
 			fprintf(stderr, "\t-ap: disable collapsing near-constant animation tracks to actually constant tracks\n");
-			fprintf(stderr, "\t-al [N]: convert STEP animation tracks to LINEAR; when keyframes are more than N ms apart (default: 100), the value is held until 0.1ms before the next keyframe to preserve the step\n");
+			fprintf(stderr, "\t-al [N]: convert STEP animation tracks to LINEAR; when keyframes are more than N ms apart (default: 100), the value is held until 4ms before the next keyframe to preserve the step\n");
 			fprintf(stderr, "\nScene:\n");
 			fprintf(stderr, "\t-kn: keep named nodes and meshes attached to named nodes so that named nodes can be transformed externally\n");
 			fprintf(stderr, "\t-km: keep named materials and disable named material merging\n");
