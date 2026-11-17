@@ -215,6 +215,49 @@ static void resampleKeyframes(std::vector<Attr>& data, const std::vector<float>&
 	}
 }
 
+// keyframes closer than ~2ms break some importers (PiXYZ); merging them is part of -al, which exists purely for PiXYZ compatibility
+static const float kMinKeyframeSpacing = 2e-3f;
+
+// merge keyframes that are closer than min_spacing to the previously kept keyframe
+// the earlier time is kept (so spacing between kept keys is always >= min_spacing) and the later value wins, so the timing error is < min_spacing;
+// if the merged key is the last one, its time is kept as well to preserve the track duration
+static void mergeCloseKeyframes(Track& track, float min_spacing)
+{
+	if (track.interpolation == cgltf_interpolation_type_cubic_spline)
+		return;
+
+	assert(track.data.size() == track.time.size() * track.components);
+
+	size_t components = track.components;
+	size_t count = track.time.size();
+	size_t kept = 0;
+
+	for (size_t i = 1; i < count; ++i)
+	{
+		bool close = track.time[i] - track.time[kept] < min_spacing;
+
+		if (close)
+		{
+			// later value wins; the last keyframe also keeps its time
+			if (i + 1 == count)
+				track.time[kept] = track.time[i];
+		}
+		else
+		{
+			++kept;
+			track.time[kept] = track.time[i];
+		}
+
+		memmove(&track.data[kept * components], &track.data[i * components], components * sizeof(Attr));
+	}
+
+	if (count > 0 && kept + 1 < count)
+	{
+		track.time.resize(kept + 1);
+		track.data.resize((kept + 1) * components);
+	}
+}
+
 static void convertStepToLinear(Track& track, float min_gap)
 {
 	assert(track.interpolation == cgltf_interpolation_type_step);
@@ -360,6 +403,9 @@ void processAnimation(Animation& animation, const Settings& settings)
 	for (size_t i = 0; i < animation.tracks.size(); ++i)
 	{
 		Track& track = animation.tracks[i];
+
+		if (settings.anim_step_linear && !settings.anim_freq)
+			mergeCloseKeyframes(track, kMinKeyframeSpacing);
 
 		if (settings.anim_step_linear && track.interpolation == cgltf_interpolation_type_step)
 			convertStepToLinear(track, float(settings.anim_step_gap) / 1000.f);
